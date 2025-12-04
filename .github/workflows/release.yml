@@ -1,0 +1,121 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # v1.0.0, v2.1.3 などのタグにマッチ
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 全履歴を取得してリリースノート生成に使用
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "VERSION_WITHOUT_V=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create release archive
+        run: |
+          mkdir -p release-package
+          
+          # メインファイルをコピー
+          cp netapp-report.ps1 release-package/
+          cp README.md release-package/
+          cp LICENSE release-package/
+          cp .gitignore release-package/
+          
+          # ディレクトリをコピー
+          cp -r config release-package/
+          cp -r modules release-package/
+          
+          # reportsとlogsディレクトリの構造を作成（空）
+          mkdir -p release-package/reports
+          mkdir -p release-package/logs
+          touch release-package/reports/.gitkeep
+          touch release-package/logs/.gitkeep
+          
+          # アーカイブを作成
+          cd release-package
+          zip -r ../netapp-report-${{ steps.get_version.outputs.VERSION_WITHOUT_V }}.zip .
+          tar -czf ../netapp-report-${{ steps.get_version.outputs.VERSION_WITHOUT_V }}.tar.gz .
+          cd ..
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # 前回のタグを取得
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # 最初のリリースの場合
+            echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+            echo "## 🎉 Initial Release" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "NetApp ONTAP Report Generator の最初のリリースです。" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "### 🎯 主な特徴" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "- ✅ **包括的な情報収集** - クラスター、ノード、アグリゲート、ボリューム、LIF、ポート、ディスク情報を収集" >> $GITHUB_OUTPUT
+            echo "- ✅ **健全性チェック** - リソースの閾値ベースの状態判定と異常検知" >> $GITHUB_OUTPUT
+            echo "- ✅ **ディスク情報レポート** - 全ディスク情報の取得、スペアディスクのゼロイング状態確認" >> $GITHUB_OUTPUT
+            echo "- ✅ **複数出力形式** - JSON、HTML、CSV形式でのレポート出力" >> $GITHUB_OUTPUT
+            echo "- ✅ **メール送信機能** - HTMLレポートの自動メール送信" >> $GITHUB_OUTPUT
+            echo "- ✅ **モジュール化設計** - 保守性と拡張性に優れた構造" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "### 📋 必要要件" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "- PowerShell 5.1 以上" >> $GITHUB_OUTPUT
+            echo "- NetApp.ONTAP モジュール" >> $GITHUB_OUTPUT
+            echo "- NetApp ONTAP クラスターへのアクセス権限" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "### 📦 インストール" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "\`\`\`powershell" >> $GITHUB_OUTPUT
+            echo "# NetApp.ONTAP モジュールのインストール" >> $GITHUB_OUTPUT
+            echo "Install-Module -Name NetApp.ONTAP -Scope CurrentUser" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "# リリースをダウンロードして展開" >> $GITHUB_OUTPUT
+            echo "# 環境変数を設定して実行" >> $GITHUB_OUTPUT
+            echo "./netapp-report.ps1" >> $GITHUB_OUTPUT
+            echo "\`\`\`" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "詳細は [README.md](https://github.com/${{ github.repository }}/blob/${{ steps.get_version.outputs.VERSION }}/README.md) をご覧ください。" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            # 前回のリリースからの変更を取得
+            echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+            echo "## 📝 Changes since ${PREVIOUS_TAG}" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "詳細は [README.md](https://github.com/${{ github.repository }}/blob/${{ steps.get_version.outputs.VERSION }}/README.md) をご覧ください。" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: ${{ steps.release_notes.outputs.NOTES }}
+          draft: false
+          prerelease: false
+          files: |
+            netapp-report-${{ steps.get_version.outputs.VERSION_WITHOUT_V }}.zip
+            netapp-report-${{ steps.get_version.outputs.VERSION_WITHOUT_V }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version badge
+        run: |
+          echo "✅ Release ${{ steps.get_version.outputs.VERSION }} created successfully!"

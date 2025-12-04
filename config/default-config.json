@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "NetApp Daily Report - Default Configuration",
+  "netapp": {
+    "filer": "",
+    "timeout": 50000,
+    "retryAttempts": 3,
+    "retryDelaySeconds": 5
+  },
+  "authentication": {
+    "method": "environment",
+    "environmentVariables": {
+      "filer": "NETAPP_FILER",
+      "username": "NETAPP_USERNAME",
+      "password": "NETAPP_PASSWORD"
+    }
+  },
+  "report": {
+    "sections": [
+      "cluster",
+      "node",
+      "aggregate",
+      "volume",
+      "lif",
+      "port",
+      "disk",
+      "alldisk"
+    ],
+    "outputFormats": [
+      "json",
+      "html"
+    ],
+    "outputDirectory": "./reports",
+    "includeTimestamp": true,
+    "retention": {
+      "enabled": true,
+      "days": 30,
+      "maxGenerations": 50
+    },
+    "thresholds": {
+      "aggregate": {
+        "warning": 80,
+        "critical": 90
+      },
+      "volume": {
+        "warning": 80,
+        "critical": 90
+      }
+    }
+  },
+  "performance": {
+    "enableParallelProcessing": false,
+    "maxParallelThreads": 3
+  },
+  "logging": {
+    "enabled": true,
+    "level": "Info",
+    "logDirectory": "./logs",
+    "retentionDays": 30
+  },
+  "email": {
+    "enabled": false,
+    "smtpServer": "",
+    "smtpPort": 587,
+    "encryptionType": "StartTLS",
+    "useAuthentication": true,
+    "username": "",
+    "password": "",
+    "from": "",
+    "to": [],
+    "cc": [],
+    "bcc": [],
+    "subject": "NetApp Daily Report - {FilerName} ({Date})",
+    "includeHtmlInBody": true,
+    "attachReports": false
+  }
+}

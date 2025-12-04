@@ -1,0 +1,169 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 毎週月曜日 9:00 (UTC) に実行
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check PowerShell module versions
+        shell: pwsh
+        run: |
+          Write-Host "📦 PowerShell モジュールの依存関係を確認中..." -ForegroundColor Cyan
+          
+          # NetApp.ONTAPの最新バージョンを確認
+          Write-Host "`nNetApp.ONTAP:" -ForegroundColor Yellow
+          try {
+            $availableVersions = Find-Module -Name NetApp.ONTAP -AllVersions -ErrorAction Stop | Select-Object -First 5
+            $availableVersions | Format-Table Name, Version, PublishedDate -AutoSize
+          } catch {
+            Write-Warning "NetApp.ONTAP モジュールが見つかりません"
+          }
+          
+          # PSScriptAnalyzerの最新バージョンを確認
+          Write-Host "`nPSScriptAnalyzer:" -ForegroundColor Yellow
+          $availableVersions = Find-Module -Name PSScriptAnalyzer -AllVersions | Select-Object -First 5
+          $availableVersions | Format-Table Name, Version, PublishedDate -AutoSize
+
+  vulnerability-scan:
+    name: Custom Security Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan for security issues
+        shell: pwsh
+        run: |
+          Write-Host "🔍 セキュリティ問題をスキャン中..." -ForegroundColor Cyan
+          
+          $issues = @()
+          $warnings = @()
+          
+          # ハードコードされた認証情報のチェック
+          Write-Host "`n1. ハードコードされた認証情報のチェック..." -ForegroundColor Yellow
+          $credentialPatterns = @(
+            @{ Pattern = 'password\s*=\s*[''"](?!.*example|.*placeholder|.*YourPassword)[^''"]{8,}[''"]'; Description = 'ハードコードされたパスワード' },
+            @{ Pattern = 'api[_-]?key\s*=\s*[''"](?!.*example|.*placeholder)[^''"]+[''"]'; Description = 'APIキー' },
+            @{ Pattern = 'secret\s*=\s*[''"](?!.*example|.*placeholder)[^''"]+[''"]'; Description = 'シークレット' },
+            @{ Pattern = 'token\s*=\s*[''"](?!.*example|.*placeholder)[^''"]+[''"]'; Description = 'トークン' }
+          )
+          
+          $files = Get-ChildItem -Path . -Include *.ps1,*.psm1,*.json -Recurse | 
+                   Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' }
+          
+          foreach ($file in $files) {
+            $content = Get-Content -Path $file.FullName -Raw
+            foreach ($pattern in $credentialPatterns) {
+              if ($content -match $pattern.Pattern) {
+                $issues += "⚠️  $($pattern.Description) が検出された可能性: $($file.FullName)"
+              }
+            }
+          }
+          
+          # 安全でない関数の使用チェック
+          Write-Host "`n2. 安全でない関数の使用チェック..." -ForegroundColor Yellow
+          $unsafeFunctions = @(
+            @{ Pattern = 'ConvertTo-SecureString.*-AsPlainText.*-Force'; Description = 'ConvertTo-SecureString -AsPlainText -Force' },
+            @{ Pattern = 'Invoke-Expression\s+\$'; Description = 'Invoke-Expression with variable' }
+          )
+          
+          foreach ($file in $files) {
+            $content = Get-Content -Path $file.FullName -Raw
+            foreach ($func in $unsafeFunctions) {
+              if ($content -match $func.Pattern) {
+                $warnings += "ℹ️  $($func.Description) の使用: $($file.FullName)"
+              }
+            }
+          }
+          
+          # 結果のサマリー
+          Write-Host "`n========================================" -ForegroundColor Cyan
+          Write-Host "セキュリティスキャン結果" -ForegroundColor Cyan
+          Write-Host "========================================" -ForegroundColor Cyan
+          
+          if ($issues.Count -gt 0) {
+            Write-Host "`n❌ セキュリティ問題が検出されました:" -ForegroundColor Red
+            $issues | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+            Write-Error "セキュリティ問題を修正してください"
+            exit 1
+          } else {
+            Write-Host "`n✅ 重大なセキュリティ問題は検出されませんでした" -ForegroundColor Green
+          }
+          
+          if ($warnings.Count -gt 0) {
+            Write-Host "`n⚠️  注意事項:" -ForegroundColor Yellow
+            $warnings | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
+          }
+
+  trivy-scan:
+    name: Trivy Security Scanner
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  markdown-link-check:
+    name: Markdown Link Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Markdown links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          check-modified-files-only: 'no'

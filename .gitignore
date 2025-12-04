@@ -1,0 +1,59 @@
+# NetApp Report - Git Ignore File
+
+# レポート出力ディレクトリ
+reports/
+*.json
+*.html
+*.csv
+
+# ログファイル
+logs/
+*.log
+
+# 設定ファイル（認証情報を含む可能性があるため）
+config/*-config.json
+!config/default-config.json
+
+# PowerShell
+*.ps1~
+*.psm1~
+
+# 一時ファイル
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# OS固有ファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# エディタ設定
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Windows
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# 認証情報を含む可能性のあるファイル
+*.credentials
+secrets.*
+.env
+.env.local
+.env.*.local

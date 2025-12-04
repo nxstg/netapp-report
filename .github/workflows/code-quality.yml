@@ -1,0 +1,126 @@
+name: Code Quality Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  powershell-analysis:
+    name: PowerShell Static Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PowerShell modules
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          
+          # NetApp.ONTAP モジュールをインストール
+          try {
+            Install-Module -Name NetApp.ONTAP -Force -Scope CurrentUser -ErrorAction Stop
+            Write-Host "✓ NetApp.ONTAP をインストールしました" -ForegroundColor Green
+          } catch {
+            Write-Warning "NetApp.ONTAP のインストールに失敗しました: $($_.Exception.Message)"
+          }
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Write-Host "🔍 PSScriptAnalyzer を実行中..." -ForegroundColor Cyan
+          
+          # PSGallery設定を使用して解析
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Settings PSGallery
+          
+          if ($results) {
+            Write-Host "`nPSScriptAnalyzer が $($results.Count) 件の問題を検出しました:" -ForegroundColor Yellow
+            $results | Format-Table -AutoSize
+            
+            $errors = $results | Where-Object { $_.Severity -eq 'Error' }
+            if ($errors) {
+              Write-Host "`n❌ $($errors.Count) 件のエラーが見つかりました。ビルド失敗。" -ForegroundColor Red
+              exit 1
+            }
+            
+            $warnings = $results | Where-Object { $_.Severity -eq 'Warning' }
+            if ($warnings) {
+              Write-Host "`n⚠️  $($warnings.Count) 件の警告が見つかりました。" -ForegroundColor Yellow
+            }
+          } else {
+            Write-Host "`n✅ 問題は見つかりませんでした！" -ForegroundColor Green
+          }
+
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          Write-Host "📝 PowerShell 構文をチェック中..." -ForegroundColor Cyan
+          
+          $files = Get-ChildItem -Path . -Include *.ps1,*.psm1 -Recurse | 
+                   Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' }
+          $errors = @()
+          
+          foreach ($file in $files) {
+            try {
+              $null = [System.Management.Automation.Language.Parser]::ParseFile(
+                $file.FullName,
+                [ref]$null,
+                [ref]$null
+              )
+              Write-Host "  ✅ $($file.Name)" -ForegroundColor Green
+            } catch {
+              Write-Host "  ❌ $($file.Name): $($_.Exception.Message)" -ForegroundColor Red
+              $errors += $file.Name
+            }
+          }
+          
+          if ($errors.Count -gt 0) {
+            Write-Host "`n❌ $($errors.Count) ファイルで構文エラーが見つかりました" -ForegroundColor Red
+            exit 1
+          } else {
+            Write-Host "`n✅ すべてのファイルの構文が正しいです" -ForegroundColor Green
+          }
+
+  json-validation:
+    name: JSON Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        shell: pwsh
+        run: |
+          Write-Host "📄 JSON 設定ファイルを検証中..." -ForegroundColor Cyan
+          
+          $jsonFiles = Get-ChildItem -Path config -Filter *.json -ErrorAction SilentlyContinue
+          
+          if (-not $jsonFiles) {
+            Write-Host "⚠️  config ディレクトリにJSONファイルが見つかりません" -ForegroundColor Yellow
+            exit 0
+          }
+          
+          $errors = @()
+          
+          foreach ($file in $jsonFiles) {
+            try {
+              $null = Get-Content -Path $file.FullName -Raw | ConvertFrom-Json -ErrorAction Stop
+              Write-Host "  ✅ $($file.Name)" -ForegroundColor Green
+            } catch {
+              Write-Host "  ❌ $($file.Name): $($_.Exception.Message)" -ForegroundColor Red
+              $errors += $file.Name
+            }
+          }
+          
+          if ($errors.Count -gt 0) {
+            Write-Host "`n❌ $($errors.Count) ファイルでJSON検証が失敗しました" -ForegroundColor Red
+            exit 1
+          } else {
+            Write-Host "`n✅ すべてのJSONファイルが有効です" -ForegroundColor Green
+          }
