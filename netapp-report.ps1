@@ -34,7 +34,7 @@
     # 環境変数から認証情報を使用（推奨）
     $env:NETAPP_FILER = "netapp01.example.com"
     $env:NETAPP_USERNAME = "admin"
-    $env:NETAPP_PASSWORD = "SecurePassword123"
+    $env:NETAPP_PASSWORD = "YourPassword"
     ./netapp-report.ps1
 
 .EXAMPLE
