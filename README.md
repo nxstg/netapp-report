@@ -461,7 +461,7 @@ Invoke-ScriptAnalyzer -Path . -Recurse
 ## 📚 参考資料
 
 - [NetApp PowerShell Toolkit Documentation](https://docs.netapp.com/us-en/ontap-automation/index.html)
-- [NetApp ONTAP REST API](https://docs.netapp.com/us-en/ontap-automation/rest/overview.html)
+- [NetApp ONTAP Automation Documentation](https://docs.netapp.com/us-en/ontap-automation/)
 - [PowerShell Documentation](https://docs.microsoft.com/powershell/)
 - [PSScriptAnalyzer Rules](https://github.com/PowerShell/PSScriptAnalyzer/tree/master/docs/Rules)
 
