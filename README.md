@@ -1,4 +1,4 @@
-# NetApp ONTAP Report Generator v1.0.0
+# NetApp ONTAP Report Generator v1.0.1
 
 [![Code Quality](https://github.com/nxstg/netapp-report/actions/workflows/code-quality.yml/badge.svg)](https://github.com/nxstg/netapp-report/actions/workflows/code-quality.yml)
 [![Security Scan](https://github.com/nxstg/netapp-report/actions/workflows/security-scan.yml/badge.svg)](https://github.com/nxstg/netapp-report/actions/workflows/security-scan.yml)
