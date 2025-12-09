@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    NetApp ONTAP Report Generator v1.0.2
+    NetApp ONTAP Report Generator v1.0.3
 
 .DESCRIPTION
     NetApp ONTAP環境のレポートを生成するモダンなPowerShellスクリプト
@@ -56,7 +56,7 @@
     ./netapp-report.ps1 -ConfigFile ./my-config.json
 
 .NOTES
-    Version: 1.0.2
+    Version: 1.0.3
     Author: nxstg
     Requires: NetApp.ONTAP module
 #>
@@ -90,7 +90,7 @@ param(
 #Requires -Version 5.1
 
 # スクリプトのバージョン
-$ScriptVersion = "1.0.2"
+$ScriptVersion = "1.0.3"
 
 # エラーアクションの設定
 $ErrorActionPreference = "Stop"
