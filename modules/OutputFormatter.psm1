@@ -249,8 +249,6 @@ function Export-ReportToHTML {
             <thead>
                 <tr>
                     <th>ディスク名</th>
-                    <th>シェルフ</th>
-                    <th>ベイ</th>
                     <th>タイプ</th>
                     <th>サイズ</th>
                     <th>ホームノード</th>
@@ -264,8 +262,6 @@ function Export-ReportToHTML {
                     $html += @"
                 <tr>
                     <td><strong>$($disk.Name)</strong></td>
-                    <td>$($disk.Shelf)</td>
-                    <td>$($disk.Bay)</td>
                     <td>$($disk.DiskType)</td>
                     <td>$($disk.PhysicalSizeReadable)</td>
                     <td>$($disk.HomeNodeName)</td>
@@ -424,8 +420,6 @@ function Export-ReportToHTML {
             <thead>
                 <tr>
                     <th>ディスク名</th>
-                    <th>シェルフ</th>
-                    <th>ベイ</th>
                     <th>ベンダー</th>
                     <th>モデル</th>
                     <th>ファームウェア</th>
@@ -433,18 +427,25 @@ function Export-ReportToHTML {
                     <th>RPM</th>
                     <th>サイズ</th>
                     <th>コンテナ</th>
-                    <th>コンテナ名</th>
+                    <th>ゼロイング</th>
                     <th>オーナー</th>
                 </tr>
             </thead>
             <tbody>
 "@
             foreach ($disk in $Data.AllDisks) {
+                # ゼロイングステータスの表示
+                $zeroingDisplay = if ($disk.IsZeroed -eq $true) {
+                    '<span class="status-ok">完了</span>'
+                } elseif ($disk.IsZeroed -eq $false) {
+                    '<span class="status-warning">未完了</span>'
+                } else {
+                    'N/A'
+                }
+                
                 $html += @"
                 <tr>
                     <td><strong>$($disk.Name)</strong></td>
-                    <td>$($disk.Shelf)</td>
-                    <td>$($disk.Bay)</td>
                     <td>$($disk.Vendor)</td>
                     <td>$($disk.Model)</td>
                     <td>$($disk.FirmwareRevision)</td>
@@ -452,7 +453,7 @@ function Export-ReportToHTML {
                     <td>$($disk.RPM)</td>
                     <td>$($disk.PhysicalSizeReadable)</td>
                     <td>$($disk.ContainerType)</td>
-                    <td>$($disk.ContainerName)</td>
+                    <td>$zeroingDisplay</td>
                     <td>$($disk.OwnerNodeName)</td>
                 </tr>
 "@

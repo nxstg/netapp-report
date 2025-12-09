@@ -492,9 +492,6 @@ function Get-DiskMetrics {
             try {
                 $diskMetrics += [PSCustomObject]@{
                     Name = $disk.Name
-                    Shelf = $disk.DiskInventoryInfo.ShelfId
-                    Bay = $disk.DiskInventoryInfo.Bay
-                    ContainerType = $disk.DiskRaidInfo.ContainerType
                     IsZeroed = $disk.DiskRaidInfo.DiskSpareInfo.IsZeroed
                     HomeNodeName = $disk.DiskOwnershipInfo.HomeNodeName
                     OwnerNodeName = $disk.DiskOwnershipInfo.OwnerNodeName
@@ -602,10 +599,14 @@ function Get-AllDiskMetrics {
                     $physicalSize = $disk.DiskRaidInfo.UsableSize
                 }
                 
+                # ゼロイングステータスの取得
+                $isZeroed = $null
+                if ($disk.DiskRaidInfo.DiskSpareInfo) {
+                    $isZeroed = $disk.DiskRaidInfo.DiskSpareInfo.IsZeroed
+                }
+                
                 $diskMetrics += [PSCustomObject]@{
                     Name = $disk.Name
-                    Shelf = $disk.DiskInventoryInfo.ShelfId
-                    Bay = $disk.DiskInventoryInfo.Bay
                     Vendor = $disk.DiskInventoryInfo.Vendor
                     Model = $disk.DiskInventoryInfo.Model
                     SerialNumber = $disk.DiskInventoryInfo.SerialNumber
@@ -615,7 +616,7 @@ function Get-AllDiskMetrics {
                     PhysicalSize = $physicalSize
                     PhysicalSizeReadable = if ($physicalSize -gt 0) { ConvertTo-ReadableSize -Bytes $physicalSize } else { "N/A" }
                     ContainerType = $containerType
-                    ContainerName = $disk.DiskRaidInfo.ContainerName
+                    IsZeroed = $isZeroed
                     HomeNodeName = $disk.DiskOwnershipInfo.HomeNodeName
                     OwnerNodeName = $disk.DiskOwnershipInfo.OwnerNodeName
                     Pool = $disk.DiskOwnershipInfo.Pool
