@@ -969,7 +969,8 @@ function Remove-OldReports {
         }
         
         # JSON/HTMLファイルのクリーンアップ
-        $reportFiles = Get-ChildItem -Path $OutputDirectory -Filter "*.json" -File -ErrorAction SilentlyContinue
+        $reportFiles = @()
+        $reportFiles += Get-ChildItem -Path $OutputDirectory -Filter "*.json" -File -ErrorAction SilentlyContinue
         $reportFiles += Get-ChildItem -Path $OutputDirectory -Filter "*.html" -File -ErrorAction SilentlyContinue
         
         $deletedCount = 0
